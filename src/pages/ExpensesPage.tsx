@@ -1,11 +1,26 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useExpenseStore, useMemberStore, useCategoryStore, useProjectStore } from '@/stores'
+import { CalendarDays, Plus, Receipt, Trash2, Users, Wallet } from 'lucide-react'
+import { useCategoryStore, useExpenseStore, useMemberStore, useProjectStore } from '@/stores'
 import { ProjectStatus } from '@/types/project'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Plus, Trash2 } from 'lucide-react'
-import { format } from 'date-fns'
+import { Card, CardContent } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Input } from '@/components/ui/input'
+import { ModalSheet } from '@/components/ui/modal-sheet'
+import { PageHero } from '@/components/ui/page-hero'
+import { formatCurrency, formatDateInputValue, formatDateTimeLabel } from '@/utils/format'
+
+function createDefaultExpenseForm() {
+  return {
+    amount: '',
+    categoryId: '',
+    payerId: '',
+    participantIds: [] as string[],
+    date: formatDateInputValue(Date.now()),
+    note: ''
+  }
+}
 
 export default function ExpensesPage() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -15,264 +30,337 @@ export default function ExpensesPage() {
   const { getProjectById } = useProjectStore()
 
   const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState({
-    amount: '',
-    categoryId: '',
-    payerId: '',
-    participantIds: [] as string[],
-    date: new Date().toISOString().split('T')[0],
-    note: ''
-  })
+  const [formData, setFormData] = useState(createDefaultExpenseForm)
 
   const project = projectId ? getProjectById(projectId) : undefined
   const isCompleted = project?.status === ProjectStatus.COMPLETED
 
-  const projectExpenses = expenses
-    .filter(e => e.projectId === projectId)
-    .sort((a, b) => b.date - a.date)
+  const projectExpenses = useMemo(
+    () =>
+      expenses
+        .filter((expense) => expense.projectId === projectId)
+        .sort((a, b) => b.date - a.date),
+    [expenses, projectId]
+  )
+
+  const projectMembers = project
+    ? members.filter((member) => project.memberIds.includes(member.id))
+    : []
+  const totalAmount = projectExpenses.reduce((sum, expense) => sum + expense.amount, 0)
+  const averageAmount = projectExpenses.length > 0 ? totalAmount / projectExpenses.length : 0
+
+  const getMember = (id: string) => members.find((member) => member.id === id)
+  const getCategory = (id: string) => categories.find((category) => category.id === id)
 
   const handleSubmit = () => {
-    if (!projectId || !formData.amount || !formData.categoryId || !formData.payerId || formData.participantIds.length === 0) {
+    if (
+      !projectId ||
+      !formData.amount ||
+      !formData.categoryId ||
+      !formData.payerId ||
+      formData.participantIds.length === 0
+    ) {
       alert('请填写所有必填字段')
       return
     }
 
     addExpense({
       projectId,
-      amount: parseFloat(formData.amount),
+      amount: Number(formData.amount),
       categoryId: formData.categoryId,
       payerId: formData.payerId,
       participantIds: formData.participantIds,
       date: new Date(formData.date).getTime(),
-      note: formData.note
+      note: formData.note.trim()
     })
 
-    // 重置表单
-    setFormData({
-      amount: '',
-      categoryId: '',
-      payerId: '',
-      participantIds: [],
-      date: new Date().toISOString().split('T')[0],
-      note: ''
-    })
+    setFormData(createDefaultExpenseForm())
     setShowForm(false)
   }
 
   const toggleParticipant = (memberId: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       participantIds: prev.participantIds.includes(memberId)
-        ? prev.participantIds.filter(id => id !== memberId)
+        ? prev.participantIds.filter((id) => id !== memberId)
         : [...prev.participantIds, memberId]
     }))
   }
 
-  const getMemberName = (id: string) => {
-    return members.find(m => m.id === id)?.name || '未知'
-  }
-
-  const getCategoryName = (id: string) => {
-    const cat = categories.find(c => c.id === id)
-    return cat ? `${cat.icon} ${cat.name}` : '未知'
-  }
-
-  const projectMembers = project ? members.filter(m => project.memberIds.includes(m.id)) : []
-
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-2xl font-bold text-gray-900">
-          账单管理 ({projectExpenses.length})
-        </h3>
-        {!isCompleted && (
+    <div className="space-y-5">
+      <PageHero
+        eyebrow="Expenses"
+        title="账单管理"
+        description="用清晰的金额层级、参与者和分类标签，快速回看每一笔消费的上下文。"
+        actions={!isCompleted ? (
           <Button onClick={() => setShowForm(true)}>
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="h-4 w-4" />
             添加账单
           </Button>
-        )}
-      </div>
+        ) : undefined}
+        stats={[
+          {
+            label: '账单数量',
+            value: projectExpenses.length,
+            description: '当前项目已记录的消费条目',
+            icon: Receipt,
+            tone: 'warm'
+          },
+          {
+            label: '总支出',
+            value: formatCurrency(totalAmount),
+            description: '所有账单累计金额',
+            icon: Wallet,
+            tone: 'rose'
+          },
+          {
+            label: '平均单笔',
+            value: formatCurrency(averageAmount),
+            description: '用于判断消费密度',
+            icon: CalendarDays,
+            tone: 'sky'
+          },
+          {
+            label: '参与成员',
+            value: projectMembers.length,
+            description: '可被选择为付款人或参与者',
+            icon: Users,
+            tone: 'sage'
+          }
+        ]}
+      />
 
       {isCompleted && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
-          <p className="text-yellow-800 text-sm">
-            此项目已完成，无法添加或编辑账单
-          </p>
+        <div className="app-panel rounded-[22px] border-amber-200/70 bg-gradient-to-r from-amber-50 to-white px-4 py-3.5 text-sm leading-6 text-amber-950/85">
+          此项目已完成，账单区保持只读状态。你仍然可以查看每笔消费和对应的统计、结算结果。
         </div>
       )}
 
-      {/* 添加账单表单 */}
-      {showForm && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>添加账单</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    金额 (元) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.amount}
-                    onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    日期 *
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
+      {projectExpenses.length > 0 ? (
+        <div className="space-y-4">
+          {projectExpenses.map((expense) => {
+            const payer = getMember(expense.payerId)
+            const category = getCategory(expense.categoryId)
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  分类 *
-                </label>
-                <select
-                  value={formData.categoryId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, categoryId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">请选择分类</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.icon} {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            return (
+              <Card key={expense.id} className="overflow-hidden">
+                <CardContent className="p-5">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="app-badge bg-orange-100 text-orange-950">
+                          {category?.icon || '📝'} {category?.name || '未知分类'}
+                        </span>
+                        <span className="app-badge bg-white/80 text-muted-foreground shadow-sm">
+                          <CalendarDays className="h-3.5 w-3.5" />
+                          {formatDateTimeLabel(expense.date)}
+                        </span>
+                      </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  付款人 *
-                </label>
-                <select
-                  value={formData.payerId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, payerId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">请选择付款人</option>
-                  {projectMembers.map(member => (
-                    <option key={member.id} value={member.id}>
-                      {member.avatar} {member.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                      <div className="flex flex-wrap items-end gap-4">
+                        <div className="text-4xl font-semibold tracking-tight text-foreground">
+                          {formatCurrency(expense.amount)}
+                        </div>
+                        <div className="rounded-full bg-white/80 px-4 py-2 text-sm text-muted-foreground shadow-sm">
+                          人均 {formatCurrency(expense.amount / expense.participantIds.length)}
+                        </div>
+                      </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  参与消费成员 * (费用将平均分摊)
-                </label>
-                <div className="space-y-2">
-                  {projectMembers.map(member => (
-                    <label key={member.id} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.participantIds.includes(member.id)}
-                        onChange={() => toggleParticipant(member.id)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>
-                        {member.avatar} {member.name}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div className="rounded-[22px] bg-orange-50/70 p-4">
+                          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                            付款人
+                          </div>
+                          <div className="mt-2 flex items-center gap-3">
+                            <span className="text-2xl">{payer?.avatar || '👤'}</span>
+                            <span className="font-medium text-foreground">
+                              {payer?.name || '未知成员'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="rounded-[22px] bg-white/75 p-4">
+                          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                            参与成员
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {expense.participantIds.map((participantId) => {
+                              const participant = getMember(participantId)
+                              return (
+                                <span
+                                  key={participantId}
+                                  className="app-badge bg-secondary/70 text-secondary-foreground"
+                                >
+                                  {participant?.avatar || '👤'} {participant?.name || '未知成员'}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  备注
-                </label>
-                <textarea
-                  value={formData.note}
-                  onChange={(e) => setFormData(prev => ({ ...prev, note: e.target.value }))}
-                  rows={3}
-                  placeholder="可选"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                      {expense.note && (
+                        <div className="rounded-[22px] bg-white/75 p-4 text-sm leading-7 text-muted-foreground">
+                          {expense.note}
+                        </div>
+                      )}
+                    </div>
 
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setShowForm(false)}>
-                  取消
-                </Button>
-                <Button onClick={handleSubmit}>添加</Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    {!isCompleted && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="self-end lg:self-start"
+                        onClick={() => {
+                          if (confirm('确定要删除这条账单吗？')) {
+                            deleteExpense(expense.id)
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      ) : (
+        <EmptyState
+          emoji="🧾"
+          title="还没有账单记录"
+          description="先记下一笔费用，项目统计和结算方案才会有实际内容。"
+          action={!isCompleted ? (
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4" />
+              添加第一笔账单
+            </Button>
+          ) : undefined}
+        />
       )}
 
-      {/* 账单列表 */}
-      <div className="space-y-4">
-        {projectExpenses.map(expense => (
-          <Card key={expense.id}>
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="text-2xl font-bold text-gray-900">
-                      ¥{expense.amount.toFixed(2)}
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {getCategoryName(expense.categoryId)}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <div>
-                      付款人：{getMemberName(expense.payerId)}
-                    </div>
-                    <div>
-                      参与者：{expense.participantIds.map(id => getMemberName(id)).join(', ')}
-                    </div>
-                    <div>
-                      人均：¥{(expense.amount / expense.participantIds.length).toFixed(2)}
-                    </div>
-                    {expense.note && (
-                      <div className="text-gray-500">备注：{expense.note}</div>
-                    )}
-                    <div className="text-xs text-gray-400">
-                      {format(expense.date, 'yyyy-MM-dd HH:mm')}
-                    </div>
-                  </div>
-                </div>
-                {!isCompleted && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      if (confirm('确定要删除这条账单吗？')) {
-                        deleteExpense(expense.id)
-                      }
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-600" />
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {projectExpenses.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            暂无账单，点击"添加账单"开始记账吧！
+      <ModalSheet
+        open={showForm}
+        onOpenChange={setShowForm}
+        title="添加账单"
+        description="账单会立即进入项目统计和智能结算。所有参与者默认按均摊逻辑计算。"
+      >
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="app-field-label">金额</label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.amount}
+                onChange={(event) =>
+                  setFormData((prev) => ({ ...prev, amount: event.target.value }))
+                }
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <label className="app-field-label">日期</label>
+              <Input
+                type="date"
+                value={formData.date}
+                onChange={(event) =>
+                  setFormData((prev) => ({ ...prev, date: event.target.value }))
+                }
+              />
+            </div>
           </div>
-        )}
-      </div>
+
+          <div>
+            <label className="app-field-label">消费分类</label>
+            <select
+              value={formData.categoryId}
+              onChange={(event) =>
+                setFormData((prev) => ({ ...prev, categoryId: event.target.value }))
+              }
+              className="app-select"
+            >
+              <option value="">请选择分类</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.icon} {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="app-field-label">付款人</label>
+            <select
+              value={formData.payerId}
+              onChange={(event) =>
+                setFormData((prev) => ({ ...prev, payerId: event.target.value }))
+              }
+              className="app-select"
+            >
+              <option value="">请选择付款人</option>
+              {projectMembers.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.avatar} {member.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="app-field-label">参与消费成员</label>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {projectMembers.map((member) => {
+                const isSelected = formData.participantIds.includes(member.id)
+
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    className={`rounded-[22px] border px-4 py-3 text-left transition-all ${
+                      isSelected
+                        ? 'border-primary/40 bg-orange-50 shadow-[0_12px_24px_rgba(213,106,58,0.12)]'
+                        : 'border-border/80 bg-white/80 hover:bg-white'
+                    }`}
+                    onClick={() => toggleParticipant(member.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="text-2xl">{member.avatar}</div>
+                      <div>
+                        <div className="font-medium text-foreground">{member.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {isSelected ? '已参与均摊' : '点击加入均摊'}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="app-field-label">备注</label>
+            <textarea
+              value={formData.note}
+              onChange={(event) =>
+                setFormData((prev) => ({ ...prev, note: event.target.value }))
+              }
+              rows={3}
+              className="app-textarea"
+              placeholder="例如：西湖边晚餐、打车到酒店"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setShowForm(false)}>
+              取消
+            </Button>
+            <Button onClick={handleSubmit}>确认添加</Button>
+          </div>
+        </div>
+      </ModalSheet>
     </div>
   )
 }

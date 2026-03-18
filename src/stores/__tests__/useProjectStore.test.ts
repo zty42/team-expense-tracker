@@ -19,6 +19,8 @@ vi.mock('@/utils/storage', () => ({
 import { storage } from '@/utils/storage'
 
 describe('useProjectStore', () => {
+  const defaultMemberIds = ['member-1', 'member-2']
+
   // 每次测试前重置存储状态
   beforeEach(() => {
     useProjectStore.setState({
@@ -35,6 +37,7 @@ describe('useProjectStore', () => {
         name: '测试项目',
         description: '测试描述',
         status: ProjectStatus.ACTIVE,
+        memberIds: defaultMemberIds,
         createdAt: 1234567890,
         updatedAt: 1234567890
       }
@@ -55,7 +58,8 @@ describe('useProjectStore', () => {
 
     const newProjectData = {
       name: '新项目',
-      description: '新项目描述'
+      description: '新项目描述',
+      memberIds: defaultMemberIds
     }
 
     store.addProject(newProjectData)
@@ -82,6 +86,7 @@ describe('useProjectStore', () => {
         name: '旧名称',
         description: '旧描述',
         status: ProjectStatus.ACTIVE,
+        memberIds: defaultMemberIds,
         createdAt: 1234567890,
         updatedAt: 1234567890
       }
@@ -112,6 +117,7 @@ describe('useProjectStore', () => {
         name: '进行中项目',
         description: '描述',
         status: ProjectStatus.ACTIVE,
+        memberIds: defaultMemberIds,
         createdAt: 1234567890,
         updatedAt: 1234567890
       }
@@ -137,6 +143,7 @@ describe('useProjectStore', () => {
         name: '项目1',
         description: '描述1',
         status: ProjectStatus.ACTIVE,
+        memberIds: defaultMemberIds,
         createdAt: 1234567890,
         updatedAt: 1234567890
       },
@@ -145,6 +152,7 @@ describe('useProjectStore', () => {
         name: '项目2',
         description: '描述2',
         status: ProjectStatus.ACTIVE,
+        memberIds: defaultMemberIds,
         createdAt: 1234567890,
         updatedAt: 1234567890
       }
@@ -181,6 +189,7 @@ describe('useProjectStore', () => {
         name: '项目1',
         description: '描述1',
         status: ProjectStatus.ACTIVE,
+        memberIds: defaultMemberIds,
         createdAt: 1234567890,
         updatedAt: 1234567890
       },
@@ -189,6 +198,7 @@ describe('useProjectStore', () => {
         name: '项目2',
         description: '描述2',
         status: ProjectStatus.ACTIVE,
+        memberIds: defaultMemberIds,
         createdAt: 1234567890,
         updatedAt: 1234567890
       }
@@ -213,6 +223,7 @@ describe('useProjectStore', () => {
         name: '项目1',
         description: '描述1',
         status: ProjectStatus.ACTIVE,
+        memberIds: defaultMemberIds,
         createdAt: 1234567890,
         updatedAt: 1234567890
       },
@@ -221,6 +232,7 @@ describe('useProjectStore', () => {
         name: '项目2',
         description: '描述2',
         status: ProjectStatus.ACTIVE,
+        memberIds: defaultMemberIds,
         createdAt: 1234567890,
         updatedAt: 1234567890
       }

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { calculateSettlement } from './settlement'
 import type { Expense } from '@/types/expense'
 
+const baseTimestamp = new Date('2024-01-01T00:00:00Z').getTime()
+
 describe('calculateSettlement', () => {
   it('应正确计算简单案例的结算方案', () => {
     const expenses: Expense[] = [
@@ -12,8 +14,10 @@ describe('calculateSettlement', () => {
         categoryId: 'food',
         payerId: 'A',
         participantIds: ['A', 'B', 'C'],
-        date: '2024-01-01',
-        note: '午餐'
+        date: baseTimestamp,
+        note: '午餐',
+        createdAt: baseTimestamp,
+        updatedAt: baseTimestamp
       }
     ]
     const memberIds = ['A', 'B', 'C']
@@ -65,8 +69,10 @@ describe('calculateSettlement', () => {
         categoryId: 'food',
         payerId: 'A',
         participantIds: ['A', 'B'],
-        date: '2024-01-01',
-        note: '晚餐'
+        date: baseTimestamp,
+        note: '晚餐',
+        createdAt: baseTimestamp,
+        updatedAt: baseTimestamp
       },
       {
         id: '2',
@@ -75,8 +81,10 @@ describe('calculateSettlement', () => {
         categoryId: 'transport',
         payerId: 'B',
         participantIds: ['A', 'B', 'C'],
-        date: '2024-01-02',
-        note: '交通'
+        date: baseTimestamp + 86400000,
+        note: '交通',
+        createdAt: baseTimestamp + 86400000,
+        updatedAt: baseTimestamp + 86400000
       },
       {
         id: '3',
@@ -85,8 +93,10 @@ describe('calculateSettlement', () => {
         categoryId: 'hotel',
         payerId: 'C',
         participantIds: ['B', 'C'],
-        date: '2024-01-03',
-        note: '住宿'
+        date: baseTimestamp + 86400000 * 2,
+        note: '住宿',
+        createdAt: baseTimestamp + 86400000 * 2,
+        updatedAt: baseTimestamp + 86400000 * 2
       }
     ]
     const memberIds = ['A', 'B', 'C']
@@ -133,8 +143,10 @@ describe('calculateSettlement', () => {
         categoryId: 'food',
         payerId: 'A',
         participantIds: ['A', 'B'],
-        date: '2024-01-01',
-        note: '午餐'
+        date: baseTimestamp,
+        note: '午餐',
+        createdAt: baseTimestamp,
+        updatedAt: baseTimestamp
       }
     ]
     const memberIds = ['A', 'B', 'C'] // C 不参与任何账单
@@ -156,8 +168,10 @@ describe('calculateSettlement', () => {
         categoryId: 'food',
         payerId: 'A',
         participantIds: ['A', 'B', 'C'],
-        date: '2024-01-01',
-        note: '零食'
+        date: baseTimestamp,
+        note: '零食',
+        createdAt: baseTimestamp,
+        updatedAt: baseTimestamp
       }
     ]
     const memberIds = ['A', 'B', 'C']

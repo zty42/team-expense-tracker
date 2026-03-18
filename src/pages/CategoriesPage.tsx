@@ -1,17 +1,21 @@
 import { useState } from 'react'
-import { useCategoryStore } from '@/stores'
+import { FolderKanban, Lock, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Plus, Trash2, Lock } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Input } from '@/components/ui/input'
+import { ModalSheet } from '@/components/ui/modal-sheet'
+import { PageHero } from '@/components/ui/page-hero'
+import { useCategoryStore } from '@/stores'
 
 const EMOJI_OPTIONS = ['🍜', '🚗', '🏨', '🎮', '🛍️', '📝', '🎬', '🏋️', '✈️', '🎵', '📚', '💊']
 const COLOR_OPTIONS = [
-  { name: '红色', value: '#FF6B6B' },
-  { name: '蓝色', value: '#4ECDC4' },
-  { name: '绿色', value: '#96CEB4' },
-  { name: '黄色', value: '#FFEAA7' },
-  { name: '紫色', value: '#A29BFE' },
-  { name: '橙色', value: '#FD79A8' }
+  { name: '珊瑚橙', value: '#D56A3A' },
+  { name: '薄荷绿', value: '#7FC3A5' },
+  { name: '湖水蓝', value: '#6CB8D9' },
+  { name: '暖粉色', value: '#D982A6' },
+  { name: '琥珀黄', value: '#D9B87C' },
+  { name: '烟紫灰', value: '#A4899B' }
 ]
 
 export default function CategoriesPage() {
@@ -20,8 +24,11 @@ export default function CategoriesPage() {
   const [formData, setFormData] = useState({
     name: '',
     icon: '📝',
-    color: '#FF6B6B'
+    color: '#D56A3A'
   })
+
+  const presetCategories = categories.filter((category) => !category.isCustom)
+  const customCategories = categories.filter((category) => category.isCustom)
 
   const handleSubmit = () => {
     if (!formData.name.trim()) {
@@ -30,8 +37,7 @@ export default function CategoriesPage() {
     }
 
     addCategory(formData)
-
-    setFormData({ name: '', icon: '📝', color: '#FF6B6B' })
+    setFormData({ name: '', icon: '📝', color: '#D56A3A' })
     setShowForm(false)
   }
 
@@ -46,155 +52,206 @@ export default function CategoriesPage() {
     }
   }
 
-  const presetCategories = categories.filter(c => !c.isCustom)
-  const customCategories = categories.filter(c => c.isCustom)
-
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-900">分类管理</h2>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          添加自定义分类
-        </Button>
-      </div>
+    <div className="space-y-5">
+      <PageHero
+        eyebrow="Categories"
+        title="分类管理"
+        description="消费分类决定了图表颜色、账单标签和整体识别效率。预置分类保持稳定，自定义分类负责补充你的真实场景。"
+        actions={(
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4" />
+            添加自定义分类
+          </Button>
+        )}
+        stats={[
+          {
+            label: '预置分类',
+            value: presetCategories.length,
+            description: '系统默认提供的基础分类',
+            icon: Lock,
+            tone: 'sage'
+          },
+          {
+            label: '自定义分类',
+            value: customCategories.length,
+            description: '用于补充团队自己的消费语义',
+            icon: FolderKanban,
+            tone: 'warm'
+          }
+        ]}
+      />
 
-      {/* 添加分类表单 */}
-      {showForm && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>添加自定义分类</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  分类名称 *
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="例如：医疗"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+      <section className="space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+              预置分类
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              这些分类由系统提供，适合作为团队记账的稳定基础。
+            </p>
+          </div>
+          <span className="app-badge bg-white/80 text-muted-foreground shadow-sm">
+            不可删除
+          </span>
+        </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  图标 (选择一个 emoji)
-                </label>
-                <div className="grid grid-cols-6 gap-2">
-                  {EMOJI_OPTIONS.map(emoji => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, icon: emoji }))}
-                      className={`text-3xl p-3 rounded-lg border-2 transition-all ${
-                        formData.icon === emoji
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  颜色 (用于图表显示)
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {COLOR_OPTIONS.map(color => (
-                    <button
-                      key={color.value}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, color: color.value }))}
-                      className={`flex items-center space-x-2 p-3 rounded-lg border-2 transition-all ${
-                        formData.color === color.value
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div
-                        className="w-6 h-6 rounded-full"
-                        style={{ backgroundColor: color.value }}
-                      />
-                      <span className="text-sm">{color.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setShowForm(false)}>
-                  取消
-                </Button>
-                <Button onClick={handleSubmit}>添加</Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 预置分类 */}
-      <div className="mb-8">
-        <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-          <Lock className="w-5 h-5 mr-2 text-gray-500" />
-          预置分类 ({presetCategories.length})
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {presetCategories.map(category => (
-            <Card key={category.id}>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+          {presetCategories.map((category) => (
+            <Card key={category.id} className="overflow-hidden">
               <CardContent className="p-4 text-center">
-                <div className="text-4xl mb-2">{category.icon}</div>
-                <div className="font-semibold text-gray-900">{category.name}</div>
                 <div
-                  className="w-12 h-2 rounded-full mx-auto mt-2"
-                  style={{ backgroundColor: category.color }}
-                />
+                  className="mx-auto flex h-14 w-14 items-center justify-center rounded-[20px] text-4xl shadow-sm"
+                  style={{ backgroundColor: `${category.color}20` }}
+                >
+                  {category.icon}
+                </div>
+                <div className="mt-4 font-semibold text-foreground">{category.name}</div>
+                <div className="mx-auto mt-4 h-2 w-16 rounded-full" style={{ backgroundColor: category.color }} />
               </CardContent>
             </Card>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* 自定义分类 */}
-      <div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">
-          自定义分类 ({customCategories.length})
-        </h3>
+      <section className="space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+              自定义分类
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              用来覆盖团队自己的活动场景，比如团建、医疗或办公采购。
+            </p>
+          </div>
+          <span className="app-badge bg-orange-100 text-orange-950">
+            可自由维护
+          </span>
+        </div>
+
         {customCategories.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-            {customCategories.map(category => (
-              <Card key={category.id} className="relative group">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+            {customCategories.map((category) => (
+              <Card key={category.id} className="relative overflow-hidden">
                 <CardContent className="p-4 text-center">
-                  <div className="text-4xl mb-2">{category.icon}</div>
-                  <div className="font-semibold text-gray-900">{category.name}</div>
                   <div
-                    className="w-12 h-2 rounded-full mx-auto mt-2"
-                    style={{ backgroundColor: category.color }}
-                  />
+                    className="mx-auto flex h-14 w-14 items-center justify-center rounded-[20px] text-4xl shadow-sm"
+                    style={{ backgroundColor: `${category.color}20` }}
+                  >
+                    {category.icon}
+                  </div>
+                  <div className="mt-4 font-semibold text-foreground">{category.name}</div>
+                  <div className="mx-auto mt-4 h-2 w-16 rounded-full" style={{ backgroundColor: category.color }} />
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute right-3 top-3"
                     onClick={() => handleDelete(category.id, category.isCustom)}
                   >
-                    <Trash2 className="w-4 h-4 text-red-600" />
+                    <Trash2 className="h-4 w-4 text-red-600" />
                   </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 text-gray-500">
-            暂无自定义分类，点击"添加自定义分类"开始吧！
-          </div>
+          <EmptyState
+            emoji="🏷️"
+            title="还没有自定义分类"
+            description="当预置分类不够用时，再补一个更贴近你们消费场景的分类。"
+            action={(
+              <Button onClick={() => setShowForm(true)}>
+                <Plus className="h-4 w-4" />
+                添加第一个自定义分类
+              </Button>
+            )}
+          />
         )}
-      </div>
+      </section>
+
+      <ModalSheet
+        open={showForm}
+        onOpenChange={setShowForm}
+        title="添加自定义分类"
+        description="图标和颜色会直接影响账单标签与统计图表，建议保持醒目且彼此易区分。"
+      >
+        <div className="space-y-5">
+          <div>
+            <label className="app-field-label">分类名称</label>
+            <Input
+              value={formData.name}
+              onChange={(event) =>
+                setFormData((prev) => ({ ...prev, name: event.target.value }))
+              }
+              placeholder="例如：医疗、办公、摄影"
+            />
+          </div>
+
+          <div>
+            <label className="app-field-label">图标 emoji</label>
+            <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
+              {EMOJI_OPTIONS.map((emoji) => {
+                const isSelected = formData.icon === emoji
+
+                return (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, icon: emoji }))}
+                    className={`rounded-[22px] border p-3 text-3xl transition-all ${
+                      isSelected
+                        ? 'border-primary/40 bg-orange-50 shadow-[0_12px_24px_rgba(213,106,58,0.12)]'
+                        : 'border-border/80 bg-white/80 hover:bg-white'
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="app-field-label">图表颜色</label>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {COLOR_OPTIONS.map((color) => {
+                const isSelected = formData.color === color.value
+
+                return (
+                  <button
+                    key={color.value}
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, color: color.value }))}
+                    className={`rounded-[22px] border p-3 text-left transition-all ${
+                      isSelected
+                        ? 'border-primary/40 bg-orange-50 shadow-[0_12px_24px_rgba(213,106,58,0.12)]'
+                        : 'border-border/80 bg-white/80 hover:bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-8 w-8 rounded-full"
+                        style={{ backgroundColor: color.value }}
+                      />
+                      <span className="text-sm font-medium text-foreground">
+                        {color.name}
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setShowForm(false)}>
+              取消
+            </Button>
+            <Button onClick={handleSubmit}>确认添加</Button>
+          </div>
+        </div>
+      </ModalSheet>
     </div>
   )
 }

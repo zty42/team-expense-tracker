@@ -1,8 +1,13 @@
 import { useState } from 'react'
-import { useMemberStore } from '@/stores'
+import { Edit3, Plus, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Plus, Trash2, Edit } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Input } from '@/components/ui/input'
+import { ModalSheet } from '@/components/ui/modal-sheet'
+import { PageHero } from '@/components/ui/page-hero'
+import { useMemberStore } from '@/stores'
+import type { Member } from '@/types/member'
 
 const EMOJI_OPTIONS = ['👨', '👩', '🧑', '👨‍💼', '👩‍💼', '🧑‍💼', '👨‍🎓', '👩‍🎓', '🧑‍🎓', '👨‍🔧', '👩‍🔧', '🧑‍🔧']
 
@@ -23,16 +28,16 @@ export default function MembersPage() {
 
     if (editingId) {
       updateMember(editingId, formData)
-      setEditingId(null)
     } else {
       addMember(formData)
     }
 
     setFormData({ name: '', avatar: '👨' })
+    setEditingId(null)
     setShowForm(false)
   }
 
-  const handleEdit = (member: typeof members[0]) => {
+  const handleEdit = (member: Member) => {
     setFormData({
       name: member.name,
       avatar: member.avatar || '👨'
@@ -54,113 +59,134 @@ export default function MembersPage() {
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-900">成员管理</h2>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          添加成员
-        </Button>
-      </div>
+    <div className="space-y-5">
+      <PageHero
+        eyebrow="Members"
+        title="成员管理"
+        description="统一成员头像和姓名后，账单录入、图表展示和结算方案都会更清楚。"
+        actions={(
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4" />
+            添加成员
+          </Button>
+        )}
+        stats={[
+          {
+            label: '成员总数',
+            value: members.length,
+            description: '当前本地工作台可直接参与记账的成员',
+            icon: Users,
+            tone: 'warm'
+          }
+        ]}
+      />
 
-      {/* 添加/编辑成员表单 */}
-      {showForm && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>{editingId ? '编辑成员' : '添加成员'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  姓名 *
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="例如：张三"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+      {members.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {members.map((member) => (
+            <Card key={member.id} className="overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-gradient-to-br from-orange-100 to-amber-50 text-4xl shadow-sm">
+                      {member.avatar}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-foreground">{member.name}</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        成员 ID: {member.id.slice(0, 8)}
+                      </p>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  头像 (选择一个 emoji)
-                </label>
-                <div className="grid grid-cols-6 gap-2">
-                  {EMOJI_OPTIONS.map(emoji => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, avatar: emoji }))}
-                      className={`text-3xl p-3 rounded-lg border-2 transition-all ${
-                        formData.avatar === emoji
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(member)}>
+                      <Edit3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(member.id)}
                     >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={handleCancel}>
-                  取消
-                </Button>
-                <Button onClick={handleSubmit}>
-                  {editingId ? '更新' : '添加'}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 成员列表 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {members.map(member => (
-          <Card key={member.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="text-4xl">{member.avatar}</span>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                    <p className="text-xs text-gray-500">
-                      ID: {member.id.slice(0, 8)}
-                    </p>
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex space-x-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(member)}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(member.id)}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-600" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
 
-      {members.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          暂无成员，点击"添加成员"开始吧！
+                <div className="mt-5 rounded-[22px] bg-white/75 p-4 text-sm leading-7 text-muted-foreground">
+                  这个成员可以被选作账单付款人，也可以作为消费参与者进入后续的均摊与结算流程。
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+      ) : (
+        <EmptyState
+          emoji="🧑‍🤝‍🧑"
+          title="还没有成员"
+          description="先把团队成员录入进来，项目创建和账单分摊才会更顺手。"
+          action={(
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4" />
+              添加第一位成员
+            </Button>
+          )}
+        />
       )}
+
+      <ModalSheet
+        open={showForm}
+        onOpenChange={(open) => {
+          if (!open) handleCancel()
+          else setShowForm(true)
+        }}
+        title={editingId ? '编辑成员' : '添加成员'}
+        description="成员头像会作为各页面的核心识别元素，建议选择容易分辨的 emoji。"
+      >
+        <div className="space-y-5">
+          <div>
+            <label className="app-field-label">姓名</label>
+            <Input
+              value={formData.name}
+              onChange={(event) =>
+                setFormData((prev) => ({ ...prev, name: event.target.value }))
+              }
+              placeholder="例如：张三"
+            />
+          </div>
+
+          <div>
+            <label className="app-field-label">头像 emoji</label>
+            <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
+              {EMOJI_OPTIONS.map((emoji) => {
+                const isSelected = formData.avatar === emoji
+
+                return (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, avatar: emoji }))}
+                    className={`rounded-[22px] border p-3 text-3xl transition-all ${
+                      isSelected
+                        ? 'border-primary/40 bg-orange-50 shadow-[0_12px_24px_rgba(213,106,58,0.12)]'
+                        : 'border-border/80 bg-white/80 hover:bg-white'
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={handleCancel}>
+              取消
+            </Button>
+            <Button onClick={handleSubmit}>{editingId ? '更新成员' : '确认添加'}</Button>
+          </div>
+        </div>
+      </ModalSheet>
     </div>
   )
 }

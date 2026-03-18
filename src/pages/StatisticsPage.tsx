@@ -1,8 +1,25 @@
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from 'recharts'
+import { BarChart3, PieChart as PieChartIcon, Receipt, Users, Wallet } from 'lucide-react'
 import { useParams } from 'react-router-dom'
-import { useExpenseStore, useMemberStore, useCategoryStore, useProjectStore } from '@/stores'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
+import { PageHero } from '@/components/ui/page-hero'
+import { useCategoryStore, useExpenseStore, useMemberStore, useProjectStore } from '@/stores'
 import { calculateProjectStats } from '@/utils/statistics'
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { formatCurrency } from '@/utils/format'
+
+const fallbackColors = ['#D56A3A', '#7FC3A5', '#6CB8D9', '#F09C79', '#D982A6', '#D9B87C']
 
 export default function StatisticsPage() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -12,179 +29,241 @@ export default function StatisticsPage() {
   const { getProjectById } = useProjectStore()
 
   const project = projectId ? getProjectById(projectId) : undefined
-  const projectExpenses = expenses.filter(e => e.projectId === projectId)
-  const projectMemberIds = project?.memberIds || []
+  const projectExpenses = expenses.filter((expense) => expense.projectId === projectId)
+  const stats = calculateProjectStats(projectExpenses, project?.memberIds || [])
 
-  const stats = calculateProjectStats(projectExpenses, projectMemberIds)
-
-  const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DFE6E9']
-
-  const categoryChartData = stats.categoryStats.map((stat, index) => ({
-    name: categories.find(c => c.id === stat.categoryId)?.name || '未知',
-    value: stat.amount,
-    percentage: stat.percentage,
-    color: categories.find(c => c.id === stat.categoryId)?.color || COLORS[index % COLORS.length]
-  }))
+  const categoryChartData = stats.categoryStats.map((stat, index) => {
+    const category = categories.find((item) => item.id === stat.categoryId)
+    return {
+      name: category?.name || '未知分类',
+      icon: category?.icon || '📝',
+      value: stat.amount,
+      percentage: stat.percentage,
+      color: category?.color || fallbackColors[index % fallbackColors.length]
+    }
+  })
 
   const memberChartData = stats.memberStats
-    .sort((a, b) => b.totalConsumed - a.totalConsumed)
-    .map(stat => ({
-      name: members.find(m => m.id === stat.memberId)?.name || '未知',
-      consumed: stat.totalConsumed,
-      paid: stat.totalPaid
-    }))
+    .map((stat) => {
+      const member = members.find((item) => item.id === stat.memberId)
+      return {
+        id: stat.memberId,
+        name: member?.name || '未知成员',
+        avatar: member?.avatar || '👤',
+        consumed: stat.totalConsumed,
+        paid: stat.totalPaid,
+        expenseCount: stat.expenseCount
+      }
+    })
+    .sort((a, b) => b.consumed - a.consumed)
 
   return (
-    <div>
-      <h3 className="text-2xl font-bold text-gray-900 mb-6">统计分析</h3>
+    <div className="space-y-5">
+      <PageHero
+        eyebrow="Statistics"
+        title="统计分析"
+        description="把账单拆成更容易阅读的金额结构，快速看到分类占比、成员消费和支付差异。"
+        stats={[
+          {
+            label: '总消费',
+            value: formatCurrency(stats.totalAmount),
+            description: '项目累计消费总额',
+            icon: Wallet,
+            tone: 'warm'
+          },
+          {
+            label: '人均消费',
+            value: formatCurrency(stats.averagePerPerson),
+            description: '按项目成员平均分摊后的参考值',
+            icon: Users,
+            tone: 'sage'
+          },
+          {
+            label: '账单总数',
+            value: projectExpenses.length,
+            description: '当前统计覆盖的账单数量',
+            icon: Receipt,
+            tone: 'sky'
+          },
+          {
+            label: '消费分类',
+            value: categoryChartData.length,
+            description: '在账单里实际出现过的分类数',
+            icon: PieChartIcon,
+            tone: 'rose'
+          }
+        ]}
+      />
 
-      {/* 概览卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-gray-600">总消费</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-gray-900">
-              ¥{stats.totalAmount.toFixed(2)}
-            </div>
-          </CardContent>
-        </Card>
+      {projectExpenses.length === 0 ? (
+        <EmptyState
+          emoji="📊"
+          title="还没有统计数据"
+          description="等项目里有账单后，这里会自动生成分类占比、成员支付和消费分布。"
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <PieChartIcon className="h-5 w-5 text-primary" />
+                  分类消费占比
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="h-[320px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={112}
+                        paddingAngle={4}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {categoryChartData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value) => formatCurrency(Number(value ?? 0))}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-gray-600">人均消费</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-gray-900">
-              ¥{stats.averagePerPerson.toFixed(2)}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                  {categoryChartData.map((item) => (
+                    <div
+                      key={item.name}
+                      className="rounded-[22px] border border-border/70 bg-white/75 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="h-10 w-10 rounded-2xl"
+                            style={{ backgroundColor: `${item.color}20` }}
+                          >
+                            <div className="flex h-full items-center justify-center text-xl">
+                              {item.icon}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="font-medium text-foreground">{item.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {item.percentage.toFixed(1)}%
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-sm font-semibold text-foreground">
+                          {formatCurrency(item.value)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-gray-600">账单总数</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-gray-900">
-              {projectExpenses.length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <BarChart3 className="h-5 w-5 text-primary" />
+                  成员消费对比
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="h-[320px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={memberChartData} margin={{ top: 12, right: 4, left: -16, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#ecdccc" />
+                      <XAxis dataKey="name" tickLine={false} axisLine={false} />
+                      <YAxis tickLine={false} axisLine={false} />
+                      <Tooltip
+                        formatter={(value) => formatCurrency(Number(value ?? 0))}
+                      />
+                      <Bar dataKey="consumed" fill="#7FC3A5" radius={[8, 8, 0, 0]} name="消费金额" />
+                      <Bar dataKey="paid" fill="#D56A3A" radius={[8, 8, 0, 0]} name="支付金额" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
 
-      {/* 图表 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* 分类饼图 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>分类消费占比</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {categoryChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={categoryChartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={(entry: any) => `${entry.name} ${entry.percentage.toFixed(1)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {categoryChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: any) => `¥${Number(value).toFixed(2)}`} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[300px] flex items-center justify-center text-gray-500">
-                暂无数据
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 成员消费柱状图 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>成员消费统计</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {memberChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={memberChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={(value: any) => `¥${Number(value).toFixed(2)}`} />
-                  <Legend />
-                  <Bar dataKey="consumed" fill="#4ECDC4" name="消费金额" />
-                  <Bar dataKey="paid" fill="#FF6B6B" name="支付金额" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[300px] flex items-center justify-center text-gray-500">
-                暂无数据
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 详细表格 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>成员详细统计</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    成员
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    支付金额
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    消费金额
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    参与次数
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {memberChartData.map((data, index) => (
-                  <tr key={index}>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {data.name}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                      ¥{data.paid.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                      ¥{data.consumed.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-right text-gray-500">
-                      {stats.memberStats.find(s =>
-                        members.find(m => m.id === s.memberId)?.name === data.name
-                      )?.expenseCount || 0}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                <div className="space-y-2.5">
+                  {memberChartData.map((member) => (
+                    <div
+                      key={member.id}
+                      className="rounded-[22px] border border-border/70 bg-white/75 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-orange-50 text-xl">
+                            {member.avatar}
+                          </div>
+                          <div>
+                            <div className="font-medium text-foreground">{member.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              参与 {member.expenseCount} 次
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right text-sm">
+                          <div className="font-semibold text-foreground">
+                            支付 {formatCurrency(member.paid)}
+                          </div>
+                          <div className="text-muted-foreground">
+                            消费 {formatCurrency(member.consumed)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">成员详细统计</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="app-table">
+                  <thead>
+                    <tr>
+                      <th>成员</th>
+                      <th className="text-right">支付金额</th>
+                      <th className="text-right">消费金额</th>
+                      <th className="text-right">参与次数</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {memberChartData.map((member) => (
+                      <tr key={member.id} className="border-t border-border/70">
+                        <td>
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-50 text-xl">
+                              {member.avatar}
+                            </div>
+                            <span className="font-medium text-foreground">{member.name}</span>
+                          </div>
+                        </td>
+                        <td className="text-right font-medium">{formatCurrency(member.paid)}</td>
+                        <td className="text-right font-medium">{formatCurrency(member.consumed)}</td>
+                        <td className="text-right text-muted-foreground">{member.expenseCount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   )
 }

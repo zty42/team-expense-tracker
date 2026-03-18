@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { calculateProjectStats } from './statistics'
 import type { Expense } from '@/types/expense'
 
+const baseTimestamp = new Date('2024-01-01T00:00:00Z').getTime()
+
 describe('calculateProjectStats', () => {
   it('应正确计算基本统计数据', () => {
     const expenses: Expense[] = [
@@ -12,8 +14,10 @@ describe('calculateProjectStats', () => {
         categoryId: 'food',
         payerId: 'A',
         participantIds: ['A', 'B', 'C'],
-        date: '2024-01-01',
-        note: '午餐'
+        date: baseTimestamp,
+        note: '午餐',
+        createdAt: baseTimestamp,
+        updatedAt: baseTimestamp
       },
       {
         id: '2',
@@ -22,8 +26,10 @@ describe('calculateProjectStats', () => {
         categoryId: 'transport',
         payerId: 'B',
         participantIds: ['A', 'B'],
-        date: '2024-01-02',
-        note: '交通'
+        date: baseTimestamp + 86400000,
+        note: '交通',
+        createdAt: baseTimestamp + 86400000,
+        updatedAt: baseTimestamp + 86400000
       }
     ]
     const memberIds = ['A', 'B', 'C']
@@ -97,8 +103,10 @@ describe('calculateProjectStats', () => {
         categoryId: 'food',
         payerId: 'A',
         participantIds: ['A', 'B'],
-        date: '2024-01-01',
-        note: '午餐'
+        date: baseTimestamp,
+        note: '午餐',
+        createdAt: baseTimestamp,
+        updatedAt: baseTimestamp
       }
     ]
     const memberIds: string[] = []
@@ -120,8 +128,10 @@ describe('calculateProjectStats', () => {
         categoryId: 'food',
         payerId: 'A',
         participantIds: ['A'],
-        date: '2024-01-01',
-        note: '免费'
+        date: baseTimestamp,
+        note: '免费',
+        createdAt: baseTimestamp,
+        updatedAt: baseTimestamp
       }
     ]
     const memberIds = ['A']
@@ -141,8 +151,10 @@ describe('calculateProjectStats', () => {
         categoryId: 'food',
         payerId: 'A',
         participantIds: ['A', 'B'],
-        date: '2024-01-01',
-        note: '早餐'
+        date: baseTimestamp,
+        note: '早餐',
+        createdAt: baseTimestamp,
+        updatedAt: baseTimestamp
       },
       {
         id: '2',
@@ -151,8 +163,10 @@ describe('calculateProjectStats', () => {
         categoryId: 'food',
         payerId: 'B',
         participantIds: ['A', 'B', 'C'],
-        date: '2024-01-01',
-        note: '午餐'
+        date: baseTimestamp + 86400000,
+        note: '午餐',
+        createdAt: baseTimestamp + 86400000,
+        updatedAt: baseTimestamp + 86400000
       }
     ]
     const memberIds = ['A', 'B', 'C']
@@ -174,8 +188,10 @@ describe('calculateProjectStats', () => {
         categoryId: 'food',
         payerId: 'A',
         participantIds: ['A', 'B'],
-        date: '2024-01-01',
-        note: '午餐'
+        date: baseTimestamp,
+        note: '午餐',
+        createdAt: baseTimestamp,
+        updatedAt: baseTimestamp
       }
     ]
     const memberIds = ['A', 'B', 'C', 'D'] // C 和 D 不参与任何账单
